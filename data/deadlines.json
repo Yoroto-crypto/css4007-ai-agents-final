@@ -1,0 +1,15 @@
+{
+  "AI101": [
+    {"date": "2026-12-10", "title": "Agents lab report", "weight": 0.2},
+    {"date": "2026-12-15", "title": "Final exam", "weight": 0.5}
+  ],
+  "ML201": [
+    {"date": "2026-12-12", "title": "Model evaluation assignment", "weight": 0.25},
+    {"date": "2026-12-18", "title": "Final exam", "weight": 0.5}
+  ],
+  "DB301": [
+    {"date": "2026-12-11", "title": "SQL project", "weight": 0.3},
+    {"date": "2026-12-20", "title": "Final exam", "weight": 0.5}
+  ],
+  "NET401": []
+}

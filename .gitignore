@@ -13,3 +13,5 @@ Thumbs.db
 .private/
 *.pem
 *.key
+logs/
+output/

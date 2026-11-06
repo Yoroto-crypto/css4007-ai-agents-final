@@ -1,0 +1,13 @@
+[project]
+name = "studypilot"
+version = "0.1.0"
+description = "StudyPilot: autonomous academic planning agent (CSS 4007 final project)"
+requires-python = ">=3.10"
+dependencies = ["google-genai", "python-dotenv"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
