@@ -1,16 +1,14 @@
 """LLM client interface.
 
 `LLMClient` is the contract the agent depends on. `MockLLM` returns scripted
-responses so tests are deterministic and need no API key. `GeminiClient` is
-implemented in week 11.
+responses so tests are deterministic and need no API key. The real client is
+`studypilot.gemini.GeminiClient`.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Protocol
-
-from .config import AgentConfig
 
 
 @dataclass
@@ -42,13 +40,3 @@ class MockLLM:
         if not self._responses:
             raise RuntimeError("MockLLM has no more scripted responses")
         return self._responses.pop(0)
-
-
-class GeminiClient:
-    """Real Gemini client. Implemented in week 11 (initial LLM integration)."""
-
-    def __init__(self, config: AgentConfig):
-        self.config = config
-
-    def generate(self, messages: list[dict], tools: list[dict]) -> LLMResponse:
-        raise NotImplementedError("GeminiClient is implemented in week 11")

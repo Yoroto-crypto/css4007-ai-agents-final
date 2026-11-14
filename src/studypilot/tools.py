@@ -98,3 +98,11 @@ TOOLS: dict[str, ToolSpec] = {
         parameters=_id_param("course_id", r"^[A-Z]{2,3}\d{3}$", "AI101"),
     ),
 }
+
+
+def declarations() -> list[dict]:
+    """Tool declarations ({name, description, parameters}) to register with the LLM."""
+    return [
+        {"name": t.name, "description": t.description, "parameters": t.parameters}
+        for t in TOOLS.values()
+    ]

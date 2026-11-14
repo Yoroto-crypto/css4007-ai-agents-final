@@ -7,7 +7,8 @@ import sys
 
 from .agent import run_agent
 from .config import AgentConfig
-from .llm import GeminiClient
+from .errors import ConfigError, LLMError
+from .gemini import GeminiClient
 from .trace import Trace
 
 
@@ -19,7 +20,14 @@ def main(argv: list[str] | None = None) -> int:
     config = AgentConfig.from_env()
     trace = Trace("logs/trace.jsonl")
     try:
-        result = run_agent(args.goal, config, GeminiClient(config), trace)
+        llm = GeminiClient(config, trace=trace)
+        result = run_agent(args.goal, config, llm, trace)
+    except ConfigError as exc:
+        print(f"Configuration problem: {exc}")
+        return 1
+    except LLMError as exc:
+        print(f"The model could not be reached or gave an unusable answer: {exc}")
+        return 1
     except NotImplementedError as exc:
         print(f"Not available yet: {exc}")
         return 2

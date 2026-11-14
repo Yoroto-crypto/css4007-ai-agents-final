@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from .errors import ConfigError
+
 try:  # optional: load .env if python-dotenv is installed
     from dotenv import load_dotenv
 
@@ -56,7 +58,7 @@ def get_api_key() -> str:
     """Return the Gemini API key from the environment or raise a clear error."""
     key = os.environ.get("GEMINI_API_KEY", "")
     if not key:
-        raise RuntimeError(
+        raise ConfigError(
             "GEMINI_API_KEY is not set. Copy .env.example to .env and add your key."
         )
     return key
