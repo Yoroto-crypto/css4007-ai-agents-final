@@ -2,6 +2,7 @@ import unittest
 
 from studypilot.tools import (
     TOOLS,
+    declarations,
     get_course_deadlines,
     get_course_info,
     get_student_courses,
@@ -47,6 +48,13 @@ class TestTools(unittest.TestCase):
         self.assertTrue(all(spec.read_only for spec in TOOLS.values()))
         for spec in TOOLS.values():
             self.assertIn("required", spec.parameters)
+
+    def test_declarations_describe_every_tool(self):
+        decls = declarations()
+        self.assertEqual({d["name"] for d in decls}, set(TOOLS))
+        for d in decls:
+            self.assertTrue(d["description"])
+            self.assertEqual(d["parameters"]["type"], "object")
 
     def test_injection_fixture_is_present_as_data(self):
         # The agent must later treat this text as untrusted data (week 15 guardrail test).
