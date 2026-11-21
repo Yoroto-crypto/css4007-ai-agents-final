@@ -49,6 +49,14 @@ class TestTools(unittest.TestCase):
         for spec in TOOLS.values():
             self.assertIn("required", spec.parameters)
 
+    def test_deadlines_on_or_after_filters_earlier_dates(self):
+        self.assertEqual([d["date"] for d in get_course_deadlines("AI101", "2026-12-11")], ["2026-12-15"])
+        self.assertEqual(get_course_deadlines("AI101", "2027-01-01"), [])
+
+    def test_deadlines_invalid_date_returns_error(self):
+        for bad in ["2026-02-30", "yesterday", "20261210", 5]:
+            self.assertIn("error", get_course_deadlines("AI101", bad))
+
     def test_declarations_describe_every_tool(self):
         decls = declarations()
         self.assertEqual({d["name"] for d in decls}, set(TOOLS))

@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from .dates import is_iso_date
+
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 STUDENT_ID_RE = re.compile(r"^S\d{3}$")
@@ -45,14 +47,22 @@ def get_course_info(course_id: str) -> dict:
     return dict(courses.get(course_id, {"error": "Course not found"}))
 
 
-def get_course_deadlines(course_id: str) -> list[dict] | dict:
-    """Return deadlines [{date, title, weight}] for a course."""
+def get_course_deadlines(course_id: str, on_or_after: str | None = None) -> list[dict] | dict:
+    """Return deadlines [{date, title, weight}] for a course.
+
+    If `on_or_after` (YYYY-MM-DD) is given, earlier deadlines are left out.
+    """
     if not isinstance(course_id, str) or not COURSE_ID_RE.match(course_id):
         return {"error": "Invalid course_id format (expected e.g. AI101)"}
+    if on_or_after is not None and not is_iso_date(on_or_after):
+        return {"error": "Invalid on_or_after (expected a valid date as YYYY-MM-DD)"}
     deadlines = _load("deadlines.json")
     if course_id not in deadlines:
         return {"error": "Course not found"}
-    return list(deadlines[course_id])
+    items = list(deadlines[course_id])
+    if on_or_after is not None:
+        items = [d for d in items if d["date"] >= on_or_after]
+    return items
 
 
 @dataclass(frozen=True)
@@ -64,38 +74,46 @@ class ToolSpec:
     read_only: bool = True
 
 
-def _id_param(name: str, pattern: str, example: str) -> dict:
-    return {
-        "type": "object",
-        "properties": {
-            name: {
-                "type": "string",
-                "pattern": pattern,
-                "description": f"Identifier, e.g. {example}",
-            }
-        },
-        "required": [name],
-    }
+def _params(properties: dict, required: list[str]) -> dict:
+    return {"type": "object", "properties": properties, "required": required}
 
+
+_STUDENT_ID = {
+    "type": "string",
+    "pattern": r"^S\d{3}$",
+    "description": "Student identifier, e.g. S001",
+}
+_COURSE_ID = {
+    "type": "string",
+    "pattern": r"^[A-Z]{2,3}\d{3}$",
+    "description": "Course identifier, e.g. AI101",
+}
+_ON_OR_AFTER = {
+    "type": "string",
+    "format": "date",
+    "description": "Optional. Only return deadlines on or after this date (YYYY-MM-DD).",
+}
 
 TOOLS: dict[str, ToolSpec] = {
     "get_student_courses": ToolSpec(
         name="get_student_courses",
         func=get_student_courses,
         description="List the course IDs a student is enrolled in.",
-        parameters=_id_param("student_id", r"^S\d{3}$", "S001"),
+        parameters=_params({"student_id": _STUDENT_ID}, ["student_id"]),
     ),
     "get_course_info": ToolSpec(
         name="get_course_info",
         func=get_course_info,
         description="Get title, credits, exam date and weekly workload of a course.",
-        parameters=_id_param("course_id", r"^[A-Z]{2,3}\d{3}$", "AI101"),
+        parameters=_params({"course_id": _COURSE_ID}, ["course_id"]),
     ),
     "get_course_deadlines": ToolSpec(
         name="get_course_deadlines",
         func=get_course_deadlines,
         description="Get the list of deadlines (date, title, weight) of a course.",
-        parameters=_id_param("course_id", r"^[A-Z]{2,3}\d{3}$", "AI101"),
+        parameters=_params(
+            {"course_id": _COURSE_ID, "on_or_after": _ON_OR_AFTER}, ["course_id"]
+        ),
     ),
 }
 

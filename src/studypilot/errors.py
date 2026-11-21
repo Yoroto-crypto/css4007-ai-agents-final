@@ -41,3 +41,15 @@ class LLMRetriesExhausted(LLMError):
 
 class LLMInvalidResponse(LLMError):
     """The model answered, but the answer cannot be used."""
+
+
+class ValidationError(ValueError):
+    """Input or generated output does not satisfy its schema or constraints.
+
+    `problems` lists every violation found (not just the first one), so the agent
+    can report them to the model and ask it to correct the call or the output.
+    """
+
+    def __init__(self, problems: list[str]):
+        self.problems = list(problems)
+        super().__init__("; ".join(self.problems))
