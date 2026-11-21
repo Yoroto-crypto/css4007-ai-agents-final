@@ -25,7 +25,11 @@ class LLMResponse:
 
 
 class LLMClient(Protocol):
-    def generate(self, messages: list[dict], tools: list[dict]) -> LLMResponse: ...
+    def generate(
+        self, messages: list[dict], tools: list[dict], *, json_schema: dict | None = None
+    ) -> LLMResponse:
+        """Send messages. `json_schema` asks for a JSON answer (no tools in that call)."""
+        ...
 
 
 class MockLLM:
@@ -35,8 +39,10 @@ class MockLLM:
         self._responses = list(responses)
         self.calls: list[dict] = []
 
-    def generate(self, messages: list[dict], tools: list[dict]) -> LLMResponse:
-        self.calls.append({"messages": messages, "tools": tools})
+    def generate(
+        self, messages: list[dict], tools: list[dict], *, json_schema: dict | None = None
+    ) -> LLMResponse:
+        self.calls.append({"messages": messages, "tools": tools, "json_schema": json_schema})
         if not self._responses:
             raise RuntimeError("MockLLM has no more scripted responses")
         return self._responses.pop(0)

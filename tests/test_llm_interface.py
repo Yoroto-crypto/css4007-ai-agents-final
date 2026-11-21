@@ -15,6 +15,11 @@ class TestMockLLM(unittest.TestCase):
         self.assertEqual(second.text, "done")
         self.assertEqual(len(llm.calls), 2)
 
+    def test_records_json_schema_requests(self):
+        llm = MockLLM([LLMResponse(text="{}")])
+        llm.generate([], tools=[], json_schema={"type": "object"})
+        self.assertEqual(llm.calls[0]["json_schema"], {"type": "object"})
+
     def test_raises_when_script_is_exhausted(self):
         with self.assertRaises(RuntimeError):
             MockLLM([]).generate([], tools=[])

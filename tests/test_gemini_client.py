@@ -14,8 +14,10 @@ from studypilot.gemini import (
     GeminiClient,
     classify_error,
     to_contents,
+    _strip_schema,
     to_function_declarations,
 )
+from studypilot.plan import PLAN_SCHEMA
 from studypilot.tools import declarations
 from studypilot.trace import Trace
 
@@ -223,6 +225,35 @@ class TestTextExtraction(unittest.TestCase):
         reply = client.generate(USER, tools=declarations())
         self.assertEqual(reply.text, "")
         self.assertEqual(len(reply.tool_calls), 1)
+
+
+class TestStructuredOutput(unittest.TestCase):
+    def test_json_schema_sets_json_mode_and_sends_sanitized_schema(self):
+        client, sdk, _ = make_client([ok_response('{"ok": true}')])
+        client.generate(USER, tools=[], json_schema=PLAN_SCHEMA)
+        config = sdk.requests[0]["config"]
+        self.assertEqual(config["response_mime_type"], "application/json")
+        sent = str(config["response_schema"])
+        for keyword in ("pattern", "minimum", "maximum", "minLength", "minItems", "format"):
+            self.assertNotIn(f"'{keyword}'", sent)
+        self.assertIn("'enum'", sent)       # allowed values are kept
+        self.assertIn("'required'", sent)   # required fields are kept
+        self.assertIn("pattern", str(PLAN_SCHEMA))  # our own copy keeps every constraint
+
+    def test_json_schema_and_tools_cannot_be_combined(self):
+        client, sdk, _ = make_client([ok_response()])
+        with self.assertRaises(ValueError):
+            client.generate(USER, tools=declarations(), json_schema=PLAN_SCHEMA)
+        self.assertEqual(sdk.requests, [])
+
+    def test_no_json_mode_by_default(self):
+        client, sdk, _ = make_client([ok_response()])
+        client.generate(USER, tools=[])
+        self.assertNotIn("response_mime_type", sdk.requests[0]["config"])
+
+    def test_property_named_like_a_keyword_is_not_stripped(self):
+        schema = {"type": "object", "properties": {"format": {"type": "string", "pattern": "x"}}}
+        self.assertEqual(_strip_schema(schema), {"type": "object", "properties": {"format": {"type": "string"}}})
 
 
 class TestHelpers(unittest.TestCase):

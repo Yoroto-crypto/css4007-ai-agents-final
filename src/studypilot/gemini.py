@@ -37,8 +37,13 @@ _PERMANENT_HINTS = {
     404: "model not found: check GEMINI_MODEL_FAST / GEMINI_MODEL_PLANNER",
 }
 
-# JSON-schema keys that we keep for our own validation but do not send to Gemini.
-_UNSENT_SCHEMA_KEYS = {"pattern"}
+# JSON-schema keywords we keep for our own validation but do not send to Gemini, whose
+# schema format is a smaller subset. The constraints are enforced in application code
+# (see validation.py), which is the stronger guarantee anyway.
+_UNSENT_SCHEMA_KEYS = {
+    "pattern", "format", "additionalProperties",
+    "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems",
+}
 
 
 def _network_error_types() -> tuple[type[BaseException], ...]:
@@ -93,8 +98,17 @@ def to_contents(messages: list[dict]) -> tuple[str | None, list[dict]]:
 
 
 def _strip_schema(schema: Any) -> Any:
+    """Remove unsent keywords. Property *names* are never touched, only schema keywords."""
     if isinstance(schema, dict):
-        return {k: _strip_schema(v) for k, v in schema.items() if k not in _UNSENT_SCHEMA_KEYS}
+        out: dict = {}
+        for key, value in schema.items():
+            if key in _UNSENT_SCHEMA_KEYS:
+                continue
+            if key == "properties" and isinstance(value, dict):
+                out[key] = {name: _strip_schema(sub) for name, sub in value.items()}
+            else:
+                out[key] = _strip_schema(value)
+        return out
     if isinstance(schema, list):
         return [_strip_schema(v) for v in schema]
     return schema
@@ -204,7 +218,11 @@ class GeminiClient:
         if self.trace:
             self.trace.log(event, **data)
 
-    def generate(self, messages: list[dict], tools: list[dict]) -> LLMResponse:
+    def generate(
+        self, messages: list[dict], tools: list[dict], *, json_schema: dict | None = None
+    ) -> LLMResponse:
+        if json_schema is not None and tools:
+            raise ValueError("json_schema cannot be combined with tools in one request")
         system, contents = to_contents(messages)
         config: dict[str, Any] = {"temperature": self.temperature}
         if system:
@@ -212,6 +230,9 @@ class GeminiClient:
         declarations = to_function_declarations(tools)
         if declarations:
             config["tools"] = [{"function_declarations": declarations}]
+        if json_schema is not None:
+            config["response_mime_type"] = "application/json"
+            config["response_schema"] = _strip_schema(json_schema)
 
         def attempt() -> Any:
             try:
@@ -224,7 +245,10 @@ class GeminiClient:
         def on_retry(number: int, delay: float, error: LLMTransientError) -> None:
             self._log("llm_retry", model=self.model, retry=number, delay_s=round(delay, 2), error=str(error))
 
-        self._log("llm_request", model=self.model, messages=len(contents), tools=len(declarations))
+        self._log(
+            "llm_request", model=self.model, messages=len(contents),
+            tools=len(declarations), json_mode=json_schema is not None,
+        )
         started = time.monotonic()
         try:
             response = call_with_retries(
